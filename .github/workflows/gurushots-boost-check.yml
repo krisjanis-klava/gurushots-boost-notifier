@@ -1,0 +1,28 @@
+name: GuruShots boost check
+
+on:
+  schedule:
+    # Runs every 30 minutes. GitHub may delay this by a few
+    # minutes during high load — fine for this check's purpose.
+    - cron: "0,30 * * * *"
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
+
+jobs:
+  check-boost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install curl_cffi
+
+      - name: Run boost check
+        env:
+          GURUSHOTS_EMAIL: ${{ secrets.GURUSHOTS_EMAIL }}
+          GURUSHOTS_PASSWORD: ${{ secrets.GURUSHOTS_PASSWORD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python gurushots_boost_check.py
