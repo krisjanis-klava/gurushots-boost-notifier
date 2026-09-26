@@ -103,6 +103,17 @@ API on a timer, instead of depending on GitHub's own scheduler.
    fork's **Actions** tab — a new run triggered by `workflow_dispatch`
    should appear within a few seconds.
 
+**If the test comes back "Not Found":** this is a generic error GitHub's
+API returns for more than one cause — check these two first, they cover
+the vast majority of cases:
+- The **Request method** is actually set to `POST`. Some cron services
+  default new jobs to `GET`, and a `GET` to this endpoint also returns
+  "Not Found" — easy to miss since it looks identical to a bad URL.
+- The token actually has **Actions: Read and write** permission checked.
+  GitHub's API returns the same generic 404 (not a permissions error) for
+  a private repo when the token can't access it — including when it has
+  access to the repo but the wrong permission scope.
+
 You can leave the built-in `schedule:` trigger in the workflow as a free
 backup layer (it costs nothing and won't cause duplicate notifications —
 the script just checks state, it doesn't track "already notified"), but
