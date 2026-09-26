@@ -66,25 +66,66 @@ sidebar, then **Run workflow** to trigger it manually. Check the run's log
 If a boost is available, you should get a notification within a few
 seconds.
 
-Once that works, you're done — it will now run automatically every 30
-minutes on its own.
+Once that works, the workflow's built-in schedule will run it
+automatically — but read the next section before relying on that alone,
+since GitHub's free scheduler is not very reliable on its own.
+
+### 6. Make it actually reliable with an external trigger (recommended)
+
+GitHub Actions' own `schedule` trigger is documented as best-effort: it
+gets silently delayed or dropped entirely whenever GitHub's shared
+scheduler is under load, with no retry or catch-up. In practice this can
+mean gaps of several hours between runs instead of the 30 minutes you
+asked for — through no fault of this workflow. An API-triggered run
+(`workflow_dispatch`, the same thing "Run workflow" uses) doesn't have
+this problem — it runs right away, every time. So the reliable way to get
+a real 30-minute cadence is to have a free external cron service call that
+API on a timer, instead of depending on GitHub's own scheduler.
+
+1. **Create a Personal Access Token** scoped to just this one repo:
+   [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new) →
+   under "Repository access" pick **Only select repositories** → choose
+   your fork → under "Permissions" set **Actions** to **Read and write**
+   (that's the only permission it needs). Generate it and copy the token
+   — you won't be able to see it again.
+2. **Sign up free at [cron-job.org](https://cron-job.org)** (or any
+   similar service — [EasyCron](https://www.easycron.com) works too).
+3. **Create a new cron job** with these settings:
+   - URL: `https://api.github.com/repos/YOUR-USERNAME/YOUR-FORK-NAME/actions/workflows/gurushots-boost-check.yml/dispatches`
+   - Method: `POST`
+   - Schedule: every 30 minutes
+   - Request headers:
+     - `Authorization: Bearer YOUR-PERSONAL-ACCESS-TOKEN`
+     - `Accept: application/vnd.github+json`
+     - `Content-Type: application/json`
+   - Request body: `{"ref":"master"}`
+4. Save it, then use the service's "Run now"/"Test" button and check your
+   fork's **Actions** tab — a new run triggered by `workflow_dispatch`
+   should appear within a few seconds.
+
+You can leave the built-in `schedule:` trigger in the workflow as a free
+backup layer (it costs nothing and won't cause duplicate notifications —
+the script just checks state, it doesn't track "already notified"), but
+the external trigger above is what actually gives you a dependable
+30-minute cadence.
+
+**Handle that token like a password.** It's scoped to only this one repo
+and only to triggering workflows, so a leak is low-blast-radius, but it's
+still being pasted into a third-party site's stored configuration. Revoke
+it any time from [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens)
+if you ever stop using the cron service.
 
 ## Adjusting the schedule
 
 Edit the `cron` line in
-[`.github/workflows/gurushots-boost-check.yml`](.github/workflows/gurushots-boost-check.yml).
-It uses standard [cron syntax](https://crontab.guru/). Running much more
-often than every 15–30 minutes isn't recommended — GuruShots may
-rate-limit or flag frequent automated logins.
-
-Note the schedule runs at `:07` and `:37` rather than `:00`/`:30`. GitHub's
-scheduler delays or silently drops runs during high load, and the top and
-half of every hour are by far the busiest minutes since that's what most
-scheduled workflows on GitHub use. Picking an off-peak minute like this
-gets runs much closer to the actual 30-minute interval. If you still see
-gaps of several hours between runs in your Actions tab, that's GitHub's
-scheduler dropping runs under load, not a bug in this workflow — GitHub
-does not queue or catch up missed scheduled runs.
+[`.github/workflows/gurushots-boost-check.yml`](.github/workflows/gurushots-boost-check.yml)
+if you want to change the built-in backup schedule. It uses standard
+[cron syntax](https://crontab.guru/), and runs at `:07`/`:37` rather than
+`:00`/`:30` since those are the busiest minutes on GitHub's shared
+scheduler and get delayed/dropped the most — but per the section above,
+this is a backup, not something to rely on for a precise cadence. Running
+much more often than every 15–30 minutes isn't recommended either way —
+GuruShots may rate-limit or flag frequent automated logins.
 
 ## Privacy and security notes
 
