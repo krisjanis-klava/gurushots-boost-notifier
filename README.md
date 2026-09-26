@@ -73,11 +73,18 @@ minutes on its own.
 
 Edit the `cron` line in
 [`.github/workflows/gurushots-boost-check.yml`](.github/workflows/gurushots-boost-check.yml).
-It uses standard [cron syntax](https://crontab.guru/); GitHub may delay
-scheduled runs by a few minutes during high load, which doesn't matter
-much for this use case. Running much more often than every 15–30 minutes
-isn't recommended — GuruShots may rate-limit or flag frequent automated
-logins.
+It uses standard [cron syntax](https://crontab.guru/). Running much more
+often than every 15–30 minutes isn't recommended — GuruShots may
+rate-limit or flag frequent automated logins.
+
+Note the schedule runs at `:07` and `:37` rather than `:00`/`:30`. GitHub's
+scheduler delays or silently drops runs during high load, and the top and
+half of every hour are by far the busiest minutes since that's what most
+scheduled workflows on GitHub use. Picking an off-peak minute like this
+gets runs much closer to the actual 30-minute interval. If you still see
+gaps of several hours between runs in your Actions tab, that's GitHub's
+scheduler dropping runs under load, not a bug in this workflow — GitHub
+does not queue or catch up missed scheduled runs.
 
 ## Privacy and security notes
 
